@@ -12,7 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Introduction
-Nowadays, wine has become an essential drink for people to relieve stress, party, and socialize. A good bottle of wine can bring people closer together through sharing and quickly give them something to talk about in common. Whenever you are going to visit someone, wine is one of the best gifts. But drinking doesn't mean knowing how to buy wine. Giving the right wine will have a bad social effect if you don't provide the right wine. Generally speaking, wine is usually rated on a scale of scores. The price of a bottle of wine that has been scored can be several times more expensive than before it was scored. Those who don't have enough money may need to pick the best wine at the right price from the unscoring wines to achieve their social purpose. In this paper, the prediction of wine ratings is a good solution to this problem as long as each variable is entered into the model accordingly, the model can successfully predict the final rating of the wine.
+Nowadays, wine has become an essential drink for people to relieve stress, party, and socialize. A good bottle of wine can bring people closer together through sharing and quickly give them something to talk about in common. Whenever you are going to visit someone, wine is one of the best gifts. But drinking doesn't mean knowing how to buy wine. It will have a bad social effect if you don't provide the right wine while networking with other people. In general, wine can separate into red wine and white wine. White wine is becoming more and more popular right now.
+
+Generally speaking, wine is usually rated on a scale of scores. The price of a bottle of wine that has been scored can be several times more expensive than before it was scored. Those who don't have enough money may need to pick the best wine at the right price from the unscoring wines to achieve their social purpose. In this paper, the prediction of wine ratings is a good solution to this problem as long as each variable is entered into the model accordingly, the model can successfully predict the final rating of the wine.
 
 We will show our model in the following aspects:1 Data & Packaging Loading, 2 Data Exploratory Analysis, 3 Experiment, 4 Test Case Study, 5 Conclusion & Future work. 
 
@@ -217,7 +219,7 @@ In this section, we show our experimental step including data split, cross valid
 
 ## Data Split
 
-In this subsection, we split the data with 70% on training and 30 % on test. It will gives us 3427 observations on trainning dataset and 1471 observations on testing dataset. 
+In this subsection, we split the data with 70% on training and 30 % on test. Stratified sampling was used for quality variable. It will gives us 3427 observations on training dataset and 1471 observations on testing dataset.  
 ```{r data_split}
 set.seed(1234)
 data_split <- data %>% 
@@ -231,7 +233,7 @@ dim(data_test)
 
 ## Cross Validation
 
-After splitting the data, we use cross validation to fold the training data into 10 folds with 5 repeats.
+After splitting the data, we use cross validation to fold the training data into 10 folds with 5 repeats. It is important  to use repeats since it get more precise estimates of the model's performance.
 
 ```{r}
 set.seed(1234)
@@ -241,7 +243,7 @@ data_folds <- vfold_cv(data = data_train, v = 10, strata = quality,repeats = 5)
 
 ## Add recipe
 
-since all variables are numeric, we don't need to do extra steps for recipe.
+since all variables are numeric, we don't need to do extra steps for recipe. 
 
 ```{r}
 data_recipe <- recipe(quality ~ ., data =data_train)
@@ -249,6 +251,8 @@ data_recipe
 ```
 
 ## Model setup & Inplementaton Deatails
+
+Since our predicted value is numeric, we consider using regression models below. 
 
 ### linear regression 
 
@@ -296,7 +300,7 @@ rf_workflow <- workflow() %>%
 
 We get and tune the result for random forest. 
 
-```{r echo = FALSE}
+```{r }
 rf_grid <- grid_regular( min_n(range= c(2,20)),mtry(range= c(1,11)), levels = 2)
 rf_tune <- rf_workflow %>% 
   tune_grid(
@@ -304,14 +308,15 @@ rf_tune <- rf_workflow %>%
     grid = rf_grid)
 ```
 
-we see the the randomly selected predictiors are larger, the model is better. 
+we see the randomly selected predictors are larger, the model is better (from below figure). We will got the overall performance later below.
+
 ```{r}
 autoplot(rf_tune)
 ```
 
 ### XG Boost Tree
 
-we apply a XG boost model here. we use trees = 5000 and depth =4 here
+we apply a XG boost model here. we use trees = 5000 and depth =4 as parameter to set up the model and workflow. 
 
 ```{r}
 bt_model <- boost_tree(trees = 5000, tree_depth = 4) %>% 
@@ -323,9 +328,9 @@ bt_workflow <- workflow() %>%
   add_recipe(data_recipe)
 ```
 
-we get the tunning result here (trees range from 10-2000,levels = 10).
+we get the tunning result here (trees range from 10-2000,levels = 10). We will got the overall performance later below.
 
-```{r echo=FALSE}
+```{r}
 bt_grid <- grid_regular(trees(range = c(10,2000)), levels = 10)
 bt_tune <- tune_grid(
   bt_workflow,
@@ -336,7 +341,7 @@ bt_tune <- tune_grid(
 
 ```
 
-We can see tree number is around 250 has the best(loest) rmse.
+We can see tree number is around 250 has the best(least) rmse from the following figure. 
 ```{r}
 autoplot(bt_tune)
 ```
@@ -355,7 +360,7 @@ knn_workflow <- workflow() %>%
   add_model(knn_model) %>% 
   add_recipe(data_recipe)
 ```
-Again, we got the tunning result here. 
+Again, we got the tuning result. We will got the overall performance later below.
 ```{r}
 #tuning grid
 knn_params <- parameters(knn_model)
@@ -370,14 +375,11 @@ knn_tune <- knn_workflow %>%
 ```
 
 below shows that the idea number of neighbors is 15. we can get proved by print it out in the next section. 
-```{r}
-autoplot(knn_tune)
-```
 
 
 ## Model Evaluation by Using rmse
 
-Here we show all three model tuning result with rmse here. 
+Here we show all three model tuning result with rmse here.  
 ```{r}
 show_best(rf_tune, metric = "rmse") %>% select(-.estimator, -.config)
 show_best(bt_tune, metric = "rmse") %>% select(-.estimator, -.config)
@@ -386,14 +388,14 @@ show_best(knn_tune, metric = "rmse") %>% select(-.estimator, -.config)
 
 ## Model Selection
 
-Since the best rmse for linear regression is 0.703, random forest is 0.63, xgboost is s0.88, knn is 0.70. We will choose random foreset as our final model to train since it has the lowest rmse.
+Since, from above rmse result table, the best rmse for linear regression is 0.703, random forest is 0.63, xgboost is s0.88, knn is 0.70. We will choose random foreset as our final model to train since it has the lowest rmse. 
 
 ```{r}
 rf_workflow_tuned <- rf_workflow %>% 
   finalize_workflow(select_best(rf_tune, metric = "rmse"))
 ```
 
-We fit the trainning dataset with our random forest model again.
+We fit the training dataset with our random forest model again with the best parameter tunning result.
 ```{r}
 #fit in data 
 final_model <- fit(rf_workflow_tuned, data_train)
@@ -401,7 +403,7 @@ final_model <- fit(rf_workflow_tuned, data_train)
 
 ## Best Model & Test Result Anlaysis
 
-We use our final best model to train on test dataset. Below, we shows the final result of our random forest rmse performance on test dataset. the result 0.5999 is slightly better than the traning result 0.6352. 
+We use our final best model to train on test dataset. Below, we shows the final result of our random forest rmse performance on test dataset. the result is slightly better (lower) than the training result 0.6352. It is perfect! 
 ```{r}
 data_metric <- metric_set(rmse)
 
@@ -412,18 +414,33 @@ model_test_predictions %>%
   data_metric(truth = quality, estimate = .pred)
 ```
 
-# Test Case Study
+# Test Case & Study
 
-Let's fit in a wine with a wine: fixed acidity 6.5,	volatile acidity 0.24,	citric acid	0.19, residual sugar 1.2,	chlorides 0.041,	free sulfur dioxide 30,	total sulfur dioxide 111,	density 0.99254,	pH 2.99, sulphates 0.46,	alcohol 9.4.
+## Overall Accuracy
+we calculate the accuracy by using True Predict positive value (predict correctly)/total number of test observations.
+
+Below shows our accuracy is 67%, which is not bad for a prediction model.
+```{r}
+pred_val = round(model_test_predictions$.pred)
+true_val= round(model_test_predictions$quality)
+sum(pred_val ==true_val) / dim(data_test)[1]
+```
+## Case Study: a way to utilize our model to make wine quality predticion
+
+Let's fit in information of a wine as case study test: fixed acidity 6.5,	volatile acidity 0.24,	citric acid	0.19, residual sugar 1.2,	chlorides 0.041,	free sulfur dioxide 30,	total sulfur dioxide 111,	density 0.99254,	pH 2.99, sulphates 0.46,	alcohol 9.4.
 ```{r}
 new_data <- tibble(fixed_acidity = 6.5, volatile_acidity= 0.24,	citric_acid=	0.19, residual_sugar=1.2,	chlorides= 0.041,	free_sulfur_dioxide= 30,	total_sulfur_dioxide =111,	density =0.99254,	p_h =2.99, sulphates =0.46,	alcohol= 9.4)
 round(predict(final_model, new_data = new_data))
 ```
 ![Fig. 1: example](res.png)
-From Above figure, we see the prediction 6 matches up with the true value.
+From Above figure, we see the prediction 6 matches up with the ground truth value. So in the real time, if someone find a wine without grade, he could input these information to get a prediction result! 
 
 
 
 # Conclusion & future work
 
-In this study, we used four models: Linear regression, random forest, xgboost, and knn, to make a wine quality prediction. The final result mse is 0.5999 from the random forest, considered the best model among the four models. We also show a case study to predict wine quality successfully. Random forest may because of each tree representing a sample from the data, the uncorrelated trees were able to protect themselves from making correlations between variables that were not actually correlated. Xgboost and % knn perform similarly. The linear regression is the worst but make sense sicne it only holds linear ralationships. the future, we can consider making more complex models or developing and collecting more variables for the dataset to improve the predicted result. In the future steps, we can also make a automatically wine grading system to make recommendation for potentially clients.  
+In this study, we used four models: Linear regression, random forest, xgboost, and knn, to make a wine quality prediction. The final result mse is 0.5999 from the random forest, considered the best model among the four models. We also evaluate the reuslt but computing the accuracy. We also show a case study to predict wine quality successfully. 
+
+Random forest may because of each tree representing a sample from the data, the uncorrelated trees were able to protect themselves from making correlations between variables that were not actually correlated. Xgboost and % knn perform similarly. The linear regression is the worst but make sense since it only holds linear relationships. 
+
+Our case study shows how we can use it in the real-life. In future, we can consider making more complex models or developing and collecting more variables for the dataset to improve the predicted result. In the future steps, we can also make a automatically wine grading system to make recommendation for potentially clients.
